@@ -1,0 +1,11 @@
+# the suricata binary to test
+SURICATA='/path/to/suricata'
+# default config to test. If $BASEDIR/yamls/<sid>.yaml is found, it will be used instead.
+CONFIG='/path/to/suricata.yaml'
+# base dir of the test system, should contain:
+# - pcaps
+# - rules
+# - yamls
+# Each containing files in the format <sid>.[pcap|rules|yaml]
+BASEDIR="/path/to/the/basedir/"
+
