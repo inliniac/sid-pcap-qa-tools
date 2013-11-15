@@ -1,7 +1,21 @@
 #!/bin/bash
 
-RULEDIR="/home/victor/suriqa/rules/"
-PCAPS="/home/victor/suriqa/pcaps/"
+ARGS=1         # Script requires 1 arguments.
+
+if [ $# -ne "$ARGS" ]; then
+    echo -e "\n USAGE: `basename $0` the script requires one argument - rule file."
+    exit 1;
+fi
+
+if [ -f regression_config ];then
+    . regression_config
+else
+    echo " \"regression_config \" not found !"
+    exit 1;
+fi
+
+RULEDIR="${BASEDIR}/rules/"
+PCAPS="${BASEDIR}/pcaps/"
 RULES="${1}"
 
 for sid in `ls ${PCAPS} |cut -d "." -f1`; do
