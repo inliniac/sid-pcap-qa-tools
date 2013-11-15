@@ -1,12 +1,14 @@
 #!/bin/bash
 
-PCAPS="../"
-RULES="etpro-all.rules"
+RULEDIR="/home/victor/suriqa/rules/"
+PCAPS="/home/victor/suriqa/pcaps/"
+RULES="${1}"
 
 for sid in `ls ${PCAPS} |cut -d "." -f1`; do
-    #echo $sid
+#    echo $sid
     RULEFILE="${sid}.rules"
-    RULEPATH="${PCAPS}/${RULEFILE}"
+    RULEPATH="${RULEDIR}/${RULEFILE}"
+#    echo "${RULEPATH}"
 
     if [ ! -f ${RULEPATH} ]; then
         `grep ${sid} ${RULES} > ${RULEPATH}`
@@ -17,16 +19,18 @@ for sid in `ls ${PCAPS} |cut -d "." -f1`; do
         fi
 
         if [ -f ${RULEPATH} ]; then
+#            echo "${RULEPATH} exists"
             FLOWBITS=`grep "flowbits:isset" ${RULEPATH} | wc -l`
             if [ ${FLOWBITS} -eq "1" ]; then
                 grep "flowbits:set" ${RULES} >> ${RULEPATH}
+                grep "flowbits:toggle" ${RULES} >> ${RULEPATH}
+                grep "flowbits:unset" ${RULES} >> ${RULEPATH}
             fi
+
+            # uncomment all rules
+            sed -i 's/^#*\(.*\)/\1/g' ${RULEPATH}
+            sed -i "s/^[[:blank:]]*\(.*\)/\1/g" "${RULEPATH}"
         fi
     fi
 done
 
-# uncomment all rules
-sed -i "s/^#${1}/${1}/g" ${PCAPS}/*.rules
-sed -i "s/^#${1}/${1}/g" ${PCAPS}/*.rules
-sed -i "s/^[[:blank:]]${1}/${1}/g" ${PCAPS}/*.rules
-sed -i "s/^[[:blank:]]${1}/${1}/g" ${PCAPS}/*.rules
