@@ -9,35 +9,37 @@ ERR_CODE=0     #defaulting to success return to the OS
 
 echo -e "\n Supplied directory is:  $input \n";
 
-  if [ $# -ne "$ARGS" ];
-    then
-      echo -e "\n USAGE: `basename $0` the script requires one argument - directory."
-      echo -e "\n Please supply a directory containing pcap file that has a corresponding rule."
-      exit 1;
-  fi
+if [ $# -ne "$ARGS" ]; then
+    echo -e "\n USAGE: `basename $0` the script requires one argument - directory."
+    echo -e "\n Please supply a directory containing pcap file that has a corresponding rule."
+    exit 1;
+fi
 #above check if valid number of arguments are passed to the script - should be 1 (directory location)
 
- if [ ! -d "$input" ]; then
-     # Control will enter here if DIRECTORY doesn't exist
-     echo "The supplied directory does not exist or the name is wrong !"
-     exit 1;
- fi
+if [ ! -d "$input" ]; then
+    # Control will enter here if DIRECTORY doesn't exist
+    echo "The supplied directory does not exist or the name is wrong !"
+    exit 1;
+fi
 
 
 #below we check if the configurational file exists and load the $SURICATA and $CONFIG values from there
 if [ -f regression_config ];then
 	. regression_config
 else
-  echo " \"regression_config \" not found !"
-  exit 1;
+    echo " \"regression_config \" not found !"
+    exit 1;
 fi
-
 
 SUCCESS="0"
 FAILURE="0"
 SKIPPED="0"
 
-for pcap_file in  $( dir $input -1 |grep .pcap$ ); do
+PCAPS="${input}/pcaps/"
+RULES="${input}/rules/"
+YAMLS="${input}/yamls/"
+
+for pcap_file in  $( dir ${PCAPS} -1 |grep .pcap$ ); do
     pcap_name="$(echo "$pcap_file" |awk -F "." ' { print $1 } ')"
 
     TMP_LOG=`mktemp -d /tmp/suriqa.XXXXXXXX` #creating a tmp log name
@@ -45,8 +47,7 @@ for pcap_file in  $( dir $input -1 |grep .pcap$ ); do
 
     rule_id=${pcap_name}
 
-    if [ ! -f "$input/$rule_id.rules" ];
-    then
+    if [ ! -f "${RULES}/$rule_id.rules" ]; then
         #echo "File \"$rule_id.rules\" corresponding to $pcap_file not found! "
         let ERR_CODE=$ERR_CODE+1;
         #exit $ERR_CODE ;
@@ -56,22 +57,30 @@ for pcap_file in  $( dir $input -1 |grep .pcap$ ); do
     fi
     # the above if statement checks for a corresponding rules file to the pcap supplied
 
-    MYCONFIG="${input}/${rule_id}.yaml"
+    MYCONFIG="${YAMLS}/${rule_id}.yaml"
     if [ ! -f ${MYCONFIG} ]; then
         MYCONFIG=${CONFIG}
     fi
 
-    CMD="$SURICATA -c ${MYCONFIG} --runmode=single -S $input/$rule_id.rules -r $input/$pcap_file -l $TMP_LOG/"
+    CMD="$SURICATA -c ${MYCONFIG} --runmode=single -S ${RULES}/${rule_id}.rules -r ${PCAPS}/${pcap_file} -l $TMP_LOG/ -v"
     $CMD &> "$TMP_LOG/output"
     #run Suricata
 
-    number_of_alerts="$(cat $TMP_LOG/fast.log |grep \:$rule_id\: |wc -l)"
+    number_of_alerts="$(cat $TMP_LOG/fast.log |grep \:${rule_id}: |wc -l)"
     #count the number of alerts with that particular rules files SID
 
     if [ "$number_of_alerts" -eq "0" ]; then
         echo $CMD > $TMP_LOG/command.log
         echo $rule_id ": FAILED, see $TMP_LOG, rulefile: $rule_id.rules, pcap file $pcap_file, Expected alerts, got $number_of_alerts."
         let FAILURE=$FAILURE+1 ;
+
+        # store the pcap and rule file
+        cp "${PCAPS}/${pcap_file}" "$input/fails/"
+        cp "${RULES}/${rule_id}.rules" "$input/fails/"
+        if [ -f "${YAMLS}/${rule_id}.yaml" ]; then
+            cp "${YAMLS}/${rule_id}.yaml" "$input/fails/"
+        fi
+
     else
         echo $rule_id ": OK"
         let SUCCESS=$SUCCESS+1;
