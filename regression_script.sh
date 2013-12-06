@@ -3,15 +3,15 @@
 # explantion of exactly what the script does please see at the end
 
 input=$1
-ARGS=1         # Script requires 1 arguments.
+output=$2
+ARGS=2         # Script requires 2 arguments.
 #E_BADARGS=85   # Wrong number of arguments passed to script.
 ERR_CODE=0     #defaulting to success return to the OS
 
 echo -e "\n Supplied directory is:  $input \n";
 
 if [ $# -ne "$ARGS" ]; then
-    echo -e "\n USAGE: `basename $0` the script requires one argument - directory."
-    echo -e "\n Please supply a directory containing pcap file that has a corresponding rule."
+    echo -e "\n USAGE: `basename $0` the script requires two arguments - directory, name."
     exit 1;
 fi
 #above check if valid number of arguments are passed to the script - should be 1 (directory location)
@@ -38,7 +38,7 @@ SKIPPED="0"
 PCAPS="${input}/pcaps/"
 RULES="${input}/rules/"
 YAMLS="${input}/yamls/"
-LOGS="${input}/logs/"
+LOGS="${input}/${output}/logs/"
 
 if [ "${LOGS}" = "" ]; then
     echo "FATAL LOGS not set"
@@ -49,11 +49,14 @@ if [ -d ${LOGS} ]; then
         echo "cowardly refusing to rm things as root"
     else
         rm -r ${LOGS}
-        mkdir ${LOGS}
+        mkdir -p ${LOGS}
     fi
 else
-    mkdir ${LOGS}
+    mkdir -p ${LOGS}
 fi
+
+CWD=`pwd`
+cd ${LOGS}
 
 for pcap_file in  $( dir ${PCAPS} -1 |grep .pcap$ ); do
     pcap_name="$(echo "$pcap_file" |awk -F "." ' { print $1 } ')"
@@ -113,6 +116,7 @@ echo "-----------"
 echo "SUCCESS: " $SUCCESS;
 echo "FAILURE: " $FAILURE;
 echo "SKIPPED: " $SKIPPED;
+cd $CWD
 
  [[ $FAILURE -eq "0" ]] && exit 0 || exit 1
 #the upper line - if failures are 0 it returns success, otherwise error to the  OS
