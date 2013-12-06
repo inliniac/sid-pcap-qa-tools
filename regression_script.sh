@@ -38,12 +38,25 @@ SKIPPED="0"
 PCAPS="${input}/pcaps/"
 RULES="${input}/rules/"
 YAMLS="${input}/yamls/"
+LOGS="${input}/logs/"
+
+if [ "${LOGS}" = "" ]; then
+    echo "FATAL LOGS not set"
+    exit 1
+fi
+if [ -d ${LOGS} ]; then
+    if [[ $EUID -eq 0 ]]; then
+        echo "cowardly refusing to rm things as root"
+    else
+        rm -r ${LOGS}
+        mkdir ${LOGS}
+    fi
+else
+    mkdir ${LOGS}
+fi
 
 for pcap_file in  $( dir ${PCAPS} -1 |grep .pcap$ ); do
     pcap_name="$(echo "$pcap_file" |awk -F "." ' { print $1 } ')"
-
-    TMP_LOG=`mktemp -d /tmp/suriqa.XXXXXXXX` #creating a tmp log name
-    `mkdir $TMP_LOG/files` # making a "files" directory, just in case if magic files are enabled in yaml, so that we do not stop suri from execution.
 
     rule_id=${pcap_name}
 
@@ -55,6 +68,12 @@ for pcap_file in  $( dir ${PCAPS} -1 |grep .pcap$ ); do
         let SKIPPED=$SKIPPED+1;
         continue
     fi
+
+    TMP_DIR_NAME="${LOGS}/suriqa-${rule_id}.XXXXXXXX"
+    TMP_LOG=`mktemp -d ${TMP_DIR_NAME}` #creating a tmp log name
+    `mkdir $TMP_LOG/files` # making a "files" directory, just in case if magic files are enabled in yaml, so that we do not stop suri from execution.
+    `mkdir $TMP_LOG/certs` # making a "files" directory, just in case if magic files are enabled in yaml, so that we do not stop suri from execution.
+
     # the above if statement checks for a corresponding rules file to the pcap supplied
 
     MYCONFIG="${YAMLS}/${rule_id}.yaml"
