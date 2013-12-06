@@ -35,6 +35,16 @@ SUCCESS="0"
 FAILURE="0"
 SKIPPED="0"
 
+BIN=${SURICATA}
+if [ -f "${input}/install/${output}/bin/suricata" ]; then
+    BIN="${input}/install/${output}/bin/suricata"
+fi
+echo " Binary $BIN"
+echo " Build info:"
+echo
+$BIN --build-info
+echo
+
 PCAPS="${input}/pcaps/"
 RULES="${input}/rules/"
 YAMLS="${input}/yamls/"
@@ -84,7 +94,7 @@ for pcap_file in  $( dir ${PCAPS} -1 |grep .pcap$ ); do
         MYCONFIG=${CONFIG}
     fi
 
-    CMD="$SURICATA -c ${MYCONFIG} --runmode=single -S ${RULES}/${rule_id}.rules -r ${PCAPS}/${pcap_file} -l $TMP_LOG/ -v"
+    CMD="$BIN -c ${MYCONFIG} --runmode=single -S ${RULES}/${rule_id}.rules -r ${PCAPS}/${pcap_file} -l $TMP_LOG/ -v"
     $CMD &> "$TMP_LOG/output"
     #run Suricata
 
