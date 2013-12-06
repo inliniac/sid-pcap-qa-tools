@@ -105,6 +105,8 @@ for pcap_file in  $( dir ${PCAPS} -1 |grep .pcap$ ); do
         echo $CMD > $TMP_LOG/command.log
         echo $rule_id ": FAILED, see $TMP_LOG, rulefile: $rule_id.rules, pcap file $pcap_file, Expected alerts, got $number_of_alerts."
         let FAILURE=$FAILURE+1 ;
+        cat $TMP_LOG/command.log
+        cat $TMP_LOG/output
 
         # store the pcap and rule file
         cp "${PCAPS}/${pcap_file}" "$input/fails/"
