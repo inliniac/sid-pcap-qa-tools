@@ -2,6 +2,8 @@
 # the script takes one directory as an argument
 # explantion of exactly what the script does please see at the end
 
+#set -x
+
 input=$1
 output=$2
 ARGS=2         # Script requires 2 arguments.
@@ -34,6 +36,8 @@ fi
 SUCCESS="0"
 FAILURE="0"
 SKIPPED="0"
+BLACKLISTED="0"
+KNOWNBUGS="0"
 
 BIN=${SURICATA}
 if [ -f "${input}/install/${output}/bin/suricata" ]; then
@@ -45,6 +49,8 @@ echo
 $BIN --build-info
 echo
 
+KB="${input}/knownbugs.txt"
+BL="${input}/blacklist.txt"
 PCAPS="${input}/pcaps/"
 RULES="${input}/rules/"
 YAMLS="${input}/yamls/"
@@ -82,6 +88,20 @@ for pcap_file in  $( dir ${PCAPS} -1 |grep .pcap$ ); do
         continue
     fi
 
+    SHA256=`sha256sum ${PCAPS}/$pcap_file|cut -f 1 -d " "`
+    BLLINE="${SHA256} ${rule_id}"
+    #echo "$BLLINE"
+    if test `grep "${BLLINE}" ${BL}|wc -l` = "1"; then
+        echo "BLACKLISTED"
+        let BLACKLISTED=$BLACKLISTED+1;
+        continue
+    fi
+    if test `grep "${BLLINE}" ${KB}|wc -l` = "1"; then
+        echo "KNOWNBUG"
+        let KNOWNBUGS=$KNOWNBUGS+1;
+        continue
+    fi
+
     TMP_DIR_NAME="${LOGS}/suriqa-${rule_id}.XXXXXXXX"
     TMP_LOG=`mktemp -d ${TMP_DIR_NAME}` #creating a tmp log name
     `mkdir $TMP_LOG/files` # making a "files" directory, just in case if magic files are enabled in yaml, so that we do not stop suri from execution.
@@ -94,7 +114,7 @@ for pcap_file in  $( dir ${PCAPS} -1 |grep .pcap$ ); do
         MYCONFIG=${CONFIG}
     fi
 
-    CMD="$BIN -c ${MYCONFIG} --runmode=single -S ${RULES}/${rule_id}.rules -r ${PCAPS}/${pcap_file} -l $TMP_LOG/ -v"
+    CMD="$BIN -c ${MYCONFIG} --runmode=single -S ${RULES}/${rule_id}.rules -r ${PCAPS}/${pcap_file} -l $TMP_LOG/"
     $CMD &> "$TMP_LOG/output"
     #run Suricata
 
@@ -105,8 +125,8 @@ for pcap_file in  $( dir ${PCAPS} -1 |grep .pcap$ ); do
         echo $CMD > $TMP_LOG/command.log
         echo $rule_id ": FAILED, see $TMP_LOG, rulefile: $rule_id.rules, pcap file $pcap_file, Expected alerts, got $number_of_alerts."
         let FAILURE=$FAILURE+1 ;
-        cat $TMP_LOG/command.log
-        cat $TMP_LOG/output
+#        cat $TMP_LOG/command.log
+#        cat $TMP_LOG/output
 
         # store the pcap and rule file
         cp "${PCAPS}/${pcap_file}" "$input/fails/"
@@ -128,6 +148,8 @@ echo "-----------"
 echo "SUCCESS: " $SUCCESS;
 echo "FAILURE: " $FAILURE;
 echo "SKIPPED: " $SKIPPED;
+echo "BLACKLISTED: " $BLACKLISTED;
+echo "KNOWNBUGS: " $KNOWNBUGS;
 cd $CWD
 
  [[ $FAILURE -eq "0" ]] && exit 0 || exit 1
