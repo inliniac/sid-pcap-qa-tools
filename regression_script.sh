@@ -132,7 +132,7 @@ for pcap_file in  $( dir ${PCAPS} -1 |grep .pcap$ ); do
     PACKETS=`capinfos -c -T ${PCAPS}/${pcap_file} |grep ${pcap_file}|awk '{print $2}'`
     #echo "PACKETS ${PACKETS}"
 
-    CMD="$BIN -c ${MYCONFIG} --runmode=single -S ${RULES}/${rule_id}.rules -r ${PCAPS}/${pcap_file} -l $TMP_LOG/ ${OPTIONS}"
+    CMD="$BIN -c ${MYCONFIG} --runmode=single -S ${RULES}/${rule_id}.rules -r ${PCAPS}/${pcap_file} -l $TMP_LOG/ ${OPTIONS} -v"
     $CMD &> "$TMP_LOG/output"
     RETVAL=$?
     #echo "RETVAL $RETVAL"
