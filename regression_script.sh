@@ -79,6 +79,13 @@ for pcap_file in  $( dir ${PCAPS} -1 |grep .pcap$ ); do
 
     rule_id=${pcap_name}
 
+    if [ ! -z $PCAP_FILTER ]; then
+        if test $(echo $pcap_name | grep ${PCAP_FILTER} | wc -l) = "0"; then
+            let SKIPPED=$SKIPPED+1;
+            continue
+        fi
+    fi
+
     if [ ! -f "${RULES}/$rule_id.rules" ]; then
         #echo "File \"$rule_id.rules\" corresponding to $pcap_file not found! "
         let ERR_CODE=$ERR_CODE+1;
