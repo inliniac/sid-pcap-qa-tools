@@ -102,15 +102,19 @@ for pcap_file in  $( dir ${PCAPS} -1 |grep .pcap$ ); do
     SHA256=`sha256sum ${PCAPS}/$pcap_file|cut -f 1 -d " "`
     BLLINE="${SHA256} ${rule_id}"
     #echo "$BLLINE"
-    if test `grep "${BLLINE}" ${BL}|wc -l` = "1"; then
-        echo "BLACKLISTED"
-        let BLACKLISTED=$BLACKLISTED+1;
-        continue
+    if [ -f ${BL} ]; then
+        if test `grep "${BLLINE}" ${BL}|wc -l` = "1"; then
+            echo "BLACKLISTED"
+            let BLACKLISTED=$BLACKLISTED+1;
+            continue
+        fi
     fi
-    if test `grep "${BLLINE}" ${KB}|wc -l` = "1"; then
-        echo "KNOWNBUG"
-        let KNOWNBUGS=$KNOWNBUGS+1;
-        continue
+    if [ -f ${KB} ]; then
+        if test `grep "${BLLINE}" ${KB}|wc -l` = "1"; then
+            echo "KNOWNBUG"
+            let KNOWNBUGS=$KNOWNBUGS+1;
+            continue
+        fi
     fi
 
     TMP_DIR_NAME="${LOGS}/suriqa-${rule_id}.XXXXXXXX"
