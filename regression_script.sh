@@ -6,13 +6,14 @@
 
 input=$1
 output=$2
+config=$3
 ARGS=2         # Script requires 2 arguments.
 #E_BADARGS=85   # Wrong number of arguments passed to script.
 ERR_CODE=0     #defaulting to success return to the OS
 
 echo -e "\n Supplied directory is:  $input \n";
 
-if [ $# -ne "$ARGS" ]; then
+if [ $# -le "$ARGS" ]; then
     echo -e "\n USAGE: `basename $0` the script requires two arguments - directory, name."
     exit 1;
 fi
@@ -24,10 +25,13 @@ if [ ! -d "$input" ]; then
     exit 1;
 fi
 
+OPTIONS=""
 
 #below we check if the configurational file exists and load the $SURICATA and $CONFIG values from there
-if [ -f regression_config ];then
-	. regression_config
+if [ ! -z ${config} ]; then
+    source ${config}
+elif [ -f ${input}/sid-pcap-qa-tools/regression_config ]; then
+	. ${input}/sid-pcap-qa-tools/regression_config
 else
     echo " \"regression_config \" not found !"
     exit 1;
@@ -54,7 +58,7 @@ BL="${input}/blacklist.txt"
 PCAPS="${input}/pcaps/"
 RULES="${input}/rules/"
 YAMLS="${input}/yamls/"
-LOGS="${input}/${output}/logs/"
+LOGS="${output}"
 
 if [ "${LOGS}" = "" ]; then
     echo "FATAL LOGS not set"
@@ -72,7 +76,7 @@ else
 fi
 
 CWD=`pwd`
-cd ${LOGS}
+#cd ${LOGS}
 
 for pcap_file in  $( dir ${PCAPS} -1 |grep .pcap$ ); do
     pcap_name="$(echo "$pcap_file" |awk -F "." ' { print $1 } ')"
@@ -121,16 +125,33 @@ for pcap_file in  $( dir ${PCAPS} -1 |grep .pcap$ ); do
         MYCONFIG=${CONFIG}
     fi
 
-    CMD="$BIN -c ${MYCONFIG} --runmode=single -S ${RULES}/${rule_id}.rules -r ${PCAPS}/${pcap_file} -l $TMP_LOG/"
+    PACKETS=`capinfos -c -T ${PCAPS}/${pcap_file} |grep ${pcap_file}|awk '{print $2}'`
+    #echo "PACKETS ${PACKETS}"
+
+    CMD="$BIN -c ${MYCONFIG} --runmode=single -S ${RULES}/${rule_id}.rules -r ${PCAPS}/${pcap_file} -l $TMP_LOG/ ${OPTIONS}"
     $CMD &> "$TMP_LOG/output"
+    RETVAL=$?
+    #echo "RETVAL $RETVAL"
+    SECS=`grep "elapsed" "$TMP_LOG/output"|awk -F'time elapsed ' '{print $2}'|cut -f 1 -d's'`
+
+    PPS="$(bc <<< "$PACKETS / $SECS")"
+    #echo "SECS $SECS PPS $PPS"
+    if [ $(bc <<< "$SECS >= 2") -eq 1 ] && [ $PPS -lt 5000 ]; then
+        echo "SLOW PCAP: $PPS pps, $SECS time"
+    fi
+
+
+    if [ $(bc <<< "$SECS > 2") -eq 1 ]; then
+        echo "LONG! $PACKETS packets $SECS secs $PPS pps ${RULES}/${rule_id}.rules ${PCAPS}/${pcap_file}"
+    fi
     #run Suricata
 
     number_of_alerts="$(cat $TMP_LOG/fast.log |grep \:${rule_id}: |wc -l)"
     #count the number of alerts with that particular rules files SID
 
-    if [ "$number_of_alerts" -eq "0" ]; then
+    if [ "$number_of_alerts" -eq "0" ] || [ "$RETVAL" -ne 0 ]; then
         echo $CMD > $TMP_LOG/command.log
-        echo $rule_id ": FAILED, see $TMP_LOG, rulefile: $rule_id.rules, pcap file $pcap_file, Expected alerts, got $number_of_alerts."
+        echo $rule_id ": FAILED, see $TMP_LOG, rulefile: $rule_id.rules, pcap file $pcap_file, Expected alerts, got $number_of_alerts. RETVAL $RETVAL"
         let FAILURE=$FAILURE+1 ;
 #        cat $TMP_LOG/command.log
 #        cat $TMP_LOG/output
